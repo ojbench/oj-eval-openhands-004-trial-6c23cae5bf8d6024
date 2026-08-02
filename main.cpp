@@ -26,6 +26,11 @@ static bool is_visible_ascii_no_quote(const string &s, size_t max_len) {
     for (unsigned char c : s) if (c < 32 || c > 126 || c == '"') return false;
     return true;
 }
+static bool is_visible_ascii_token(const string &s, size_t max_len) {
+    if (s.empty() || s.size() > max_len) return false;
+    for (unsigned char c : s) if (c < 33 || c > 126) return false;
+    return true;
+}
 static bool is_identifier(const string &s, size_t max_len = 30) {
     if (s.empty() || s.size() > max_len) return false;
     for (unsigned char c : s) if (!(isalnum(c) || c == '_')) return false;
@@ -131,7 +136,7 @@ class Bookstore {
     }
     bool cmd_register(const vector<string> &t) {
         if (t.size() != 4) return false;
-        if (!is_identifier(t[1]) || !is_identifier(t[2]) || !is_visible_ascii_no_quote(t[3], 30) || users.count(t[1])) return false;
+        if (!is_identifier(t[1]) || !is_identifier(t[2]) || !is_visible_ascii_token(t[3], 30) || users.count(t[1])) return false;
         users[t[1]] = {t[1], t[2], t[3], 1}; return true;
     }
     bool cmd_passwd(const vector<string> &t) {
@@ -144,7 +149,7 @@ class Bookstore {
         users[t[1]].password = t[3]; return true;
     }
     bool cmd_useradd(const vector<string> &t) {
-        if (!need_priv(3) || t.size() != 5 || !is_identifier(t[1]) || !is_identifier(t[2]) || !is_visible_ascii_no_quote(t[4], 30)) return false;
+        if (!need_priv(3) || t.size() != 5 || !is_identifier(t[1]) || !is_identifier(t[2]) || !is_visible_ascii_token(t[4], 30)) return false;
         if (t[3].size() != 1 || (t[3] != "1" && t[3] != "3")) return false;
         int p = t[3][0] - '0'; if (p >= cur_priv() || users.count(t[1])) return false;
         users[t[1]] = {t[1], t[2], t[4], p}; return true;
@@ -172,7 +177,7 @@ class Bookstore {
     bool show_filtered(const string &arg) {
         vector<const Book *> res;
         if (arg.rfind("-ISBN=", 0) == 0) {
-            string isbn = arg.substr(6); if (!is_visible_ascii_no_quote(isbn, 20)) return false;
+            string isbn = arg.substr(6); if (!is_visible_ascii_token(isbn, 20)) return false;
             auto it = books.find(isbn); if (it != books.end()) res.push_back(&it->second);
         } else if (arg.rfind("-name=", 0) == 0) {
             string v; if (!quoted_payload(arg, "-name=", v, 60) || v.empty()) return false;
@@ -198,13 +203,13 @@ class Bookstore {
         return show_filtered(t[1]);
     }
     bool cmd_buy(const vector<string> &t) {
-        if (!need_priv(1) || t.size() != 3 || !is_visible_ascii_no_quote(t[1], 20)) return false;
+        if (!need_priv(1) || t.size() != 3 || !is_visible_ascii_token(t[1], 20)) return false;
         long long q; if (!parse_positive_int(t[2], q)) return false;
         auto it = books.find(t[1]); if (it == books.end() || it->second.quantity < q) return false;
         it->second.quantity -= q; double total = it->second.price * q; finance.push_back({total, 0}); cout << money2(total) << '\n'; return true;
     }
     bool cmd_select(const vector<string> &t) {
-        if (!need_priv(3) || t.size() != 2 || !is_visible_ascii_no_quote(t[1], 20)) return false;
+        if (!need_priv(3) || t.size() != 2 || !is_visible_ascii_token(t[1], 20)) return false;
         Book &b = books[t[1]]; if (b.isbn.empty()) b.isbn = t[1];
         cur_session()->selected_isbn = t[1]; return true;
     }
@@ -218,7 +223,7 @@ class Bookstore {
             const string &arg = t[i];
             if (arg.rfind("-ISBN=", 0) == 0) {
                 if (seen_i) return false; seen_i = true;
-                string v = arg.substr(6); if (!is_visible_ascii_no_quote(v, 20) || v == updated.isbn) return false;
+                string v = arg.substr(6); if (!is_visible_ascii_token(v, 20) || v == updated.isbn) return false;
                 auto found = books.find(v); if (found != books.end()) return false; final_isbn = v;
             } else if (arg.rfind("-name=", 0) == 0) {
                 if (seen_n) return false; seen_n = true; string v; if (!quoted_payload(arg, "-name=", v, 60) || v.empty()) return false; updated.name = v;
