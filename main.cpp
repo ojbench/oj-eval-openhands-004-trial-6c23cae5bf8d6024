@@ -1,5 +1,286 @@
-#include <bits/stdc++.h>
+#include <algorithm>
+#include <cctype>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <set>
+#include <sstream>
+#include <string>
+#include <vector>
 using namespace std;
-static inline string trim(const string&s){size_t i=0,j=s.size();while(i<j&&s[i]==' ')++i;while(j>i&&s[j-1]==' ')--j;return s.substr(i,j-i);}static inline vector<string> split_ws(const string&s){vector<string>r;for(size_t i=0;i<s.size();){while(i<s.size()&&s[i]==' ')++i;if(i>=s.size())break;size_t j=i;while(j<s.size()&&s[j]!=' ')++j;r.push_back(s.substr(i,j-i));i=j;}return r;}static inline bool is_id(const string&s,size_t mx=30){if(s.empty()||s.size()>mx)return false;for(char c:s)if(!isalnum((unsigned char)c)&&c!='_')return false;return true;}static inline bool is_visible_ascii(const string&s,size_t mx=30){if(s.empty()||s.size()>mx)return false;for(char c:s)if((unsigned char)c<33||(unsigned char)c>126||c=='"')return false;return true;}static inline bool is_digits(const string&s,size_t mx=10){if(s.empty()||s.size()>mx)return false;for(char c:s)if(!isdigit((unsigned char)c))return false;return true;}static inline bool parse_int_pos(const string&s,long long&v){if(!is_digits(s))return false;v=stoll(s);return v>0&&v<=2147483647LL;}static inline bool parse_price(const string&s,double&v){if(s.empty()||s.size()>13)return false;bool dot=false;for(char c:s){if(c=='.'){if(dot)return false;dot=true;}else if(!isdigit((unsigned char)c))return false;}try{v=stod(s);}catch(...){return false;}return v>0;}
-struct Book{string isbn,name,author,keywords_raw;vector<string>keywords;double price=0;long long stock=0;bool exists=false;};struct User{string pwd;int pri=0;};int main(){ios::sync_with_stdio(false);cin.tie(nullptr);unordered_map<string,User>users;unordered_map<string,Book>books;vector<string>login;string sel;double income=0,expense=0;long long income_n=0,expense_n=0;users["root"]={"sjtu",7};auto pri=[&](){return login.empty()?0:users[login.back()].pri;};auto emit_invalid=[&](){cout<<"Invalid\n";};auto book_line=[&](const Book&b){ostringstream os;os.setf(ios::fixed);os<<setprecision(2)<<b.isbn<<'\t'<<b.name<<'\t'<<b.author<<'\t'<<b.keywords_raw<<'\t'<<b.price<<'\t'<<b.stock<<'\n';return os.str();};string line;while(getline(cin,line)){line=trim(line);if(line.empty())continue;auto t=split_ws(line);if(t.empty())continue;string c=t[0];bool ok=true;string out; if(c=="quit"||c=="exit")break; else if(c=="register"){if(t.size()==4&&is_id(t[1])&&is_id(t[2])&&is_visible_ascii(t[3])&&!users.count(t[1]))users[t[1]]={t[2],1};else ok=false;} else if(c=="su"){if(t.size()==2||t.size()==3){if(!is_id(t[1])||!users.count(t[1]))ok=false;else if(t.size()==2){if(pri()<=users[t[1]].pri)ok=false;else login.push_back(t[1]);}else if(users[t[1]].pwd!=t[2])ok=false;else login.push_back(t[1]);}else ok=false;} else if(c=="logout"){if(login.empty())ok=false;else login.pop_back();} else if(c=="passwd"){if(t.size()==3||t.size()==4){if(!is_id(t[1])||!users.count(t[1])||!is_id(t.back()))ok=false;else if(t.size()==3){if(pri()!=7)ok=false;else users[t[1]].pwd=t[2];}else if(users[t[1]].pwd!=t[2])ok=false;else users[t[1]].pwd=t[3];}else ok=false;} else if(c=="useradd"){if(t.size()==5&&is_id(t[1])&&is_id(t[2])&&is_digits(t[3],1)&&is_visible_ascii(t[4])){int p=t[3][0]-'0';if(!(p==1||p==3)||pri()<=p||users.count(t[1]))ok=false;else users[t[1]]={t[2],p};}else ok=false;} else if(c=="delete"){if(t.size()==2&&is_id(t[1])&&pri()==7&&users.count(t[1])&&t[1]!="root"){for(auto&s:login)if(s==t[1])ok=false;if(ok)users.erase(t[1]);}else ok=false;} else if(c=="select"){if(t.size()==2&&is_visible_ascii(t[1],20)&&pri()>=3){sel=t[1];auto&b=books[sel];if(!b.exists){b.isbn=sel;b.exists=true;} }else ok=false;} else if(c=="show"){ if(t.size()==1){vector<string>ids;for(auto&kv:books)if(kv.second.exists)ids.push_back(kv.first);sort(ids.begin(),ids.end());for(auto&id:ids)out+=book_line(books[id]);} else if(t.size()==2&&t[1]=="finance"){if(pri()!=7)ok=false;else {ostringstream os;os.setf(ios::fixed);os<<setprecision(2)<<"+ "<<income<<" - "<<expense<<'\n';out=os.str();}} else if(t.size()==3&&t[1]=="finance"){if(pri()!=7||!is_digits(t[2]))ok=false; else {long long k=stoll(t[2]); if(k>income_n+expense_n) ok=false; else if(k==0) out="\n"; else {ostringstream os;os.setf(ios::fixed);os<<setprecision(2)<<"+ "<<income<<" - "<<expense<<'\n';out=os.str();}}} else ok=false;} else if(c=="buy"){if(t.size()==3&&is_visible_ascii(t[1],20)&&parse_int_pos(t[2],*(new long long(0)))){long long q=stoll(t[2]);if(!books.count(t[1])||!books[t[1]].exists||books[t[1]].stock<q)ok=false;else {double x=books[t[1]].price*q;books[t[1]].stock-=q;expense+=x;expense_n++;ostringstream os;os.setf(ios::fixed);os<<setprecision(2)<<x<<'\n';out=os.str();}}else ok=false;} else if(c=="modify"){if(pri()<3||sel.empty()||t.size()<2)ok=false;else {auto&b=books[sel];string old=sel;set<string>seen;for(size_t i=1;i<t.size()&&ok;i++){string s=t[i];auto p=s.find('=');if(p==string::npos||seen.count(s.substr(1,p-1))) {ok=false;break;}seen.insert(s.substr(1,p-1));if(s.rfind("-ISBN=",0)==0){string v=s.substr(6);if(!is_visible_ascii(v,20)||v==old||(books.count(v)&&books[v].exists))ok=false;else {Book nb=b;nb.isbn=v;nb.exists=true;books.erase(old);books[v]=nb;sel=v;b=books[v];}} else if(s.rfind("-name=\"",0)==0&&s.size()>=8&&s.back()=='"')b.name=s.substr(7,s.size()-8); else if(s.rfind("-author=\"",0)==0&&s.size()>=10&&s.back()=='"')b.author=s.substr(9,s.size()-10); else if(s.rfind("-keyword=\"",0)==0&&s.size()>=11&&s.back()=='"'){string kw=s.substr(10,s.size()-11);vector<string>parts;for(size_t p2=0;;){size_t q=kw.find('|',p2);string x=kw.substr(p2,q==string::npos?string::npos:q-p2);if(x.empty()||find(parts.begin(),parts.end(),x)!=parts.end()){ok=false;break;}parts.push_back(x);if(q==string::npos)break;p2=q+1;}if(ok){b.keywords_raw=kw;b.keywords=parts;}} else if(s.rfind("-price=",0)==0){double v; if(!parse_price(s.substr(7),v)) ok=false; else b.price=v;} else ok=false;}}} else if(c=="import"){if(t.size()==3&&parse_int_pos(t[1],*(new long long(0)))&&sel.size()){double x; if(!parse_price(t[2],x)) ok=false; else {books[sel].stock+=stoll(t[1]); expense+=x; expense_n++;}} else ok=false;} else if(c=="report"){if(t.size()==2&&pri()==7&&(t[1]=="finance"||t[1]=="employee")){} else ok=false;} else ok=false; if(!ok)emit_invalid(); else cout<<out; }
+
+struct User { string id, password, name; int privilege = 0; };
+struct Book { string isbn, name, author, keyword_raw; vector<string> keywords; double price = 0; long long quantity = 0; };
+struct Session { string user_id, selected_isbn; };
+struct FinanceEntry { double income = 0, expense = 0; };
+
+static string trim_spaces(const string &s) {
+    size_t l = 0, r = s.size();
+    while (l < r && s[l] == ' ') ++l;
+    while (r > l && s[r - 1] == ' ') --r;
+    return s.substr(l, r - l);
+}
+
+static bool is_visible_ascii_no_quote(const string &s, size_t max_len) {
+    if (s.empty() || s.size() > max_len) return false;
+    for (unsigned char c : s) if (c < 32 || c > 126 || c == '"') return false;
+    return true;
+}
+static bool is_identifier(const string &s, size_t max_len = 30) {
+    if (s.empty() || s.size() > max_len) return false;
+    for (unsigned char c : s) if (!(isalnum(c) || c == '_')) return false;
+    return true;
+}
+static bool is_nonnegative_integer_token(const string &s, size_t max_len = 10) {
+    if (s.empty() || s.size() > max_len) return false;
+    for (unsigned char c : s) if (!isdigit(c)) return false;
+    return true;
+}
+static bool parse_positive_int(const string &s, long long &value) {
+    if (!is_nonnegative_integer_token(s)) return false;
+    try { value = stoll(s); } catch (...) { return false; }
+    return value > 0 && value <= 2147483647LL;
+}
+static bool parse_nonnegative_int(const string &s, long long &value) {
+    if (!is_nonnegative_integer_token(s)) return false;
+    try { value = stoll(s); } catch (...) { return false; }
+    return value <= 2147483647LL;
+}
+static bool parse_money(const string &s, double &value, bool must_positive) {
+    if (s.empty() || s.size() > 13) return false;
+    int dots = 0;
+    for (unsigned char c : s) {
+        if (c == '.') ++dots;
+        else if (!isdigit(c)) return false;
+    }
+    if (dots > 1) return false;
+    try { value = stod(s); } catch (...) { return false; }
+    return must_positive ? value > 0 : value >= 0;
+}
+static string money2(double x) {
+    ostringstream os; os.setf(ios::fixed); os << setprecision(2) << x; return os.str();
+}
+static vector<string> tokenize(const string &line, bool &ok) {
+    vector<string> tokens; ok = true;
+    for (unsigned char c : line) if (c < 32 && c != ' ') { ok = false; return {}; }
+    size_t i = 0, n = line.size();
+    while (i < n) {
+        while (i < n && line[i] == ' ') ++i;
+        if (i >= n) break;
+        string cur; bool in_quote = false;
+        while (i < n) {
+            char c = line[i];
+            if (!in_quote && c == ' ') break;
+            if (c == '"') in_quote = !in_quote;
+            cur.push_back(c); ++i;
+        }
+        if (in_quote) { ok = false; return {}; }
+        tokens.push_back(cur);
+    }
+    return tokens;
+}
+static bool quoted_payload(const string &s, const string &prefix, string &out, size_t max_len) {
+    if (s.rfind(prefix, 0) != 0) return false;
+    string rem = s.substr(prefix.size());
+    if (rem.size() < 2 || rem.front() != '"' || rem.back() != '"') return false;
+    out = rem.substr(1, rem.size() - 2);
+    return is_visible_ascii_no_quote(out, max_len);
+}
+static vector<string> split_keywords(const string &raw, bool &ok) {
+    vector<string> res; ok = true; if (raw.empty()) { ok = false; return {}; }
+    set<string> seen; size_t start = 0;
+    while (true) {
+        size_t pos = raw.find('|', start);
+        string part = raw.substr(start, pos == string::npos ? string::npos : pos - start);
+        if (part.empty() || !is_visible_ascii_no_quote(part, 60) || seen.count(part)) { ok = false; return {}; }
+        seen.insert(part); res.push_back(part);
+        if (pos == string::npos) break;
+        start = pos + 1;
+    }
+    return res;
+}
+
+class Bookstore {
+    map<string, User> users;
+    map<string, Book> books;
+    vector<Session> sessions;
+    vector<FinanceEntry> finance;
+
+    int cur_priv() const { return sessions.empty() ? 0 : users.at(sessions.back().user_id).privilege; }
+    Session *cur_session() { return sessions.empty() ? nullptr : &sessions.back(); }
+    bool need_priv(int p) const { return cur_priv() >= p; }
+    static void invalid() { cout << "Invalid\n"; }
+    static void print_book(const Book &b) {
+        cout << b.isbn << '\t' << b.name << '\t' << b.author << '\t' << b.keyword_raw << '\t' << money2(b.price) << '\t' << b.quantity << '\n';
+    }
+
+    bool cmd_su(const vector<string> &t) {
+        if (t.size() != 2 && t.size() != 3) return false;
+        if (!is_identifier(t[1])) return false;
+        auto it = users.find(t[1]); if (it == users.end()) return false;
+        if (t.size() == 2) {
+            if (cur_priv() <= it->second.privilege) return false;
+        } else {
+            if (!is_identifier(t[2]) || it->second.password != t[2]) return false;
+        }
+        sessions.push_back({t[1], ""}); return true;
+    }
+    bool cmd_logout(const vector<string> &t) {
+        if (t.size() != 1 || !need_priv(1) || sessions.empty()) return false;
+        sessions.pop_back(); return true;
+    }
+    bool cmd_register(const vector<string> &t) {
+        if (t.size() != 4) return false;
+        if (!is_identifier(t[1]) || !is_identifier(t[2]) || !is_visible_ascii_no_quote(t[3], 30) || users.count(t[1])) return false;
+        users[t[1]] = {t[1], t[2], t[3], 1}; return true;
+    }
+    bool cmd_passwd(const vector<string> &t) {
+        if (!need_priv(1) || (t.size() != 3 && t.size() != 4) || !is_identifier(t[1]) || !users.count(t[1])) return false;
+        if (t.size() == 3) {
+            if (cur_priv() != 7 || !is_identifier(t[2])) return false;
+            users[t[1]].password = t[2]; return true;
+        }
+        if (!is_identifier(t[2]) || !is_identifier(t[3]) || users[t[1]].password != t[2]) return false;
+        users[t[1]].password = t[3]; return true;
+    }
+    bool cmd_useradd(const vector<string> &t) {
+        if (!need_priv(3) || t.size() != 5 || !is_identifier(t[1]) || !is_identifier(t[2]) || !is_visible_ascii_no_quote(t[4], 30)) return false;
+        if (t[3].size() != 1 || (t[3] != "1" && t[3] != "3")) return false;
+        int p = t[3][0] - '0'; if (p >= cur_priv() || users.count(t[1])) return false;
+        users[t[1]] = {t[1], t[2], t[4], p}; return true;
+    }
+    bool cmd_delete(const vector<string> &t) {
+        if (cur_priv() != 7 || t.size() != 2 || !is_identifier(t[1])) return false;
+        auto it = users.find(t[1]); if (it == users.end()) return false;
+        for (const auto &s : sessions) if (s.user_id == t[1]) return false;
+        users.erase(it); return true;
+    }
+    bool show_finance(const vector<string> &t) {
+        if (cur_priv() != 7) return false;
+        if (t.size() == 2) {
+            double in = 0, out = 0; for (const auto &e : finance) { in += e.income; out += e.expense; }
+            cout << "+ " << money2(in) << " - " << money2(out) << '\n'; return true;
+        }
+        if (t.size() != 3) return false;
+        long long cnt; if (!parse_nonnegative_int(t[2], cnt)) return false;
+        if (cnt == 0) { cout << '\n'; return true; }
+        if (cnt > (long long)finance.size()) return false;
+        double in = 0, out = 0;
+        for (long long i = (long long)finance.size() - cnt; i < (long long)finance.size(); ++i) { in += finance[i].income; out += finance[i].expense; }
+        cout << "+ " << money2(in) << " - " << money2(out) << '\n'; return true;
+    }
+    bool show_filtered(const string &arg) {
+        vector<const Book *> res;
+        if (arg.rfind("-ISBN=", 0) == 0) {
+            string isbn = arg.substr(6); if (!is_visible_ascii_no_quote(isbn, 20)) return false;
+            auto it = books.find(isbn); if (it != books.end()) res.push_back(&it->second);
+        } else if (arg.rfind("-name=", 0) == 0) {
+            string v; if (!quoted_payload(arg, "-name=", v, 60) || v.empty()) return false;
+            for (auto &kv : books) if (kv.second.name == v) res.push_back(&kv.second);
+        } else if (arg.rfind("-author=", 0) == 0) {
+            string v; if (!quoted_payload(arg, "-author=", v, 60) || v.empty()) return false;
+            for (auto &kv : books) if (kv.second.author == v) res.push_back(&kv.second);
+        } else if (arg.rfind("-keyword=", 0) == 0) {
+            string v; if (!quoted_payload(arg, "-keyword=", v, 60) || v.empty() || v.find('|') != string::npos) return false;
+            for (auto &kv : books) {
+                for (auto &k : kv.second.keywords) if (k == v) { res.push_back(&kv.second); break; }
+            }
+        } else return false;
+        if (res.empty()) { cout << '\n'; return true; }
+        for (auto *b : res) print_book(*b);
+        return true;
+    }
+    bool cmd_show(const vector<string> &t) {
+        if (!need_priv(1)) return false;
+        if (t.size() == 1) { for (auto &kv : books) print_book(kv.second); return true; }
+        if (t[1] == "finance") return show_finance(t);
+        if (t.size() != 2) return false;
+        return show_filtered(t[1]);
+    }
+    bool cmd_buy(const vector<string> &t) {
+        if (!need_priv(1) || t.size() != 3 || !is_visible_ascii_no_quote(t[1], 20)) return false;
+        long long q; if (!parse_positive_int(t[2], q)) return false;
+        auto it = books.find(t[1]); if (it == books.end() || it->second.quantity < q) return false;
+        it->second.quantity -= q; double total = it->second.price * q; finance.push_back({total, 0}); cout << money2(total) << '\n'; return true;
+    }
+    bool cmd_select(const vector<string> &t) {
+        if (!need_priv(3) || t.size() != 2 || !is_visible_ascii_no_quote(t[1], 20)) return false;
+        Book &b = books[t[1]]; if (b.isbn.empty()) b.isbn = t[1];
+        cur_session()->selected_isbn = t[1]; return true;
+    }
+    bool cmd_modify(const vector<string> &t) {
+        if (!need_priv(3) || t.size() < 2) return false;
+        Session *s = cur_session(); if (!s || s->selected_isbn.empty()) return false;
+        auto it = books.find(s->selected_isbn); if (it == books.end()) return false;
+        Book updated = it->second; string final_isbn = updated.isbn;
+        bool seen_i = false, seen_n = false, seen_a = false, seen_k = false, seen_p = false;
+        for (size_t i = 1; i < t.size(); ++i) {
+            const string &arg = t[i];
+            if (arg.rfind("-ISBN=", 0) == 0) {
+                if (seen_i) return false; seen_i = true;
+                string v = arg.substr(6); if (!is_visible_ascii_no_quote(v, 20) || v == updated.isbn) return false;
+                auto found = books.find(v); if (found != books.end()) return false; final_isbn = v;
+            } else if (arg.rfind("-name=", 0) == 0) {
+                if (seen_n) return false; seen_n = true; string v; if (!quoted_payload(arg, "-name=", v, 60) || v.empty()) return false; updated.name = v;
+            } else if (arg.rfind("-author=", 0) == 0) {
+                if (seen_a) return false; seen_a = true; string v; if (!quoted_payload(arg, "-author=", v, 60) || v.empty()) return false; updated.author = v;
+            } else if (arg.rfind("-keyword=", 0) == 0) {
+                if (seen_k) return false; seen_k = true; string v; if (!quoted_payload(arg, "-keyword=", v, 60) || v.empty()) return false; bool ok; auto parts = split_keywords(v, ok); if (!ok) return false; updated.keyword_raw = v; updated.keywords = parts;
+            } else if (arg.rfind("-price=", 0) == 0) {
+                if (seen_p) return false; seen_p = true; double v; if (!parse_money(arg.substr(7), v, false)) return false; updated.price = v;
+            } else return false;
+        }
+        if (final_isbn != updated.isbn) {
+            books.erase(it); updated.isbn = final_isbn; books[final_isbn] = updated; s->selected_isbn = final_isbn;
+        } else it->second = updated;
+        return true;
+    }
+    bool cmd_import(const vector<string> &t) {
+        if (!need_priv(3) || t.size() != 3) return false;
+        Session *s = cur_session(); if (!s || s->selected_isbn.empty()) return false;
+        auto it = books.find(s->selected_isbn); if (it == books.end()) return false;
+        long long q; double cost; if (!parse_positive_int(t[1], q) || !parse_money(t[2], cost, true)) return false;
+        it->second.quantity += q; finance.push_back({0, cost}); return true;
+    }
+    bool cmd_log(const vector<string> &t) { if (cur_priv() != 7 || t.size() != 1) return false; cout << "log\n"; return true; }
+    bool cmd_report(const vector<string> &t) {
+        if (cur_priv() != 7 || t.size() != 2) return false;
+        if (t[1] == "finance") { cout << "report finance\n"; return true; }
+        if (t[1] == "employee") { cout << "report employee\n"; return true; }
+        return false;
+    }
+
+public:
+    Bookstore() { users["root"] = {"root", "sjtu", "root", 7}; }
+    void run() {
+        string line;
+        while (getline(cin, line)) {
+            line = trim_spaces(line);
+            if (line.empty()) continue;
+            bool ok; auto t = tokenize(line, ok); if (!ok || t.empty()) { invalid(); continue; }
+            if (t[0] == "quit" || t[0] == "exit") break;
+            bool done = false;
+            if (t[0] == "su") done = cmd_su(t);
+            else if (t[0] == "logout") done = cmd_logout(t);
+            else if (t[0] == "register") done = cmd_register(t);
+            else if (t[0] == "passwd") done = cmd_passwd(t);
+            else if (t[0] == "useradd") done = cmd_useradd(t);
+            else if (t[0] == "delete") done = cmd_delete(t);
+            else if (t[0] == "show") done = cmd_show(t);
+            else if (t[0] == "buy") done = cmd_buy(t);
+            else if (t[0] == "select") done = cmd_select(t);
+            else if (t[0] == "modify") done = cmd_modify(t);
+            else if (t[0] == "import") done = cmd_import(t);
+            else if (t[0] == "log") done = cmd_log(t);
+            else if (t[0] == "report") done = cmd_report(t);
+            if (!done) invalid();
+        }
+    }
+};
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    Bookstore bookstore; bookstore.run();
+    return 0;
 }
