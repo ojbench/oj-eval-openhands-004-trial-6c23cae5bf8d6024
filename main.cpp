@@ -197,7 +197,7 @@ class Bookstore {
     }
     bool cmd_show(const vector<string> &t) {
         if (!need_priv(1)) return false;
-        if (t.size() == 1) { for (auto &kv : books) print_book(kv.second); return true; }
+        if (t.size() == 1) { if (books.empty()) cout << '\n'; else for (auto &kv : books) print_book(kv.second); return true; }
         if (t[1] == "finance") return show_finance(t);
         if (t.size() != 2) return false;
         return show_filtered(t[1]);
